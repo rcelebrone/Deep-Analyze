@@ -74,4 +74,16 @@ describe('analyzeRepo', () => {
     expect(calls).toBe(2);
     expect(result.dependencies[0].classification).toBe('ok');
   });
+
+  it('marks resolved dependencies unknown (not "ok") when the OSV batch query fails outright', async () => {
+    vi.mocked(queryOsvBatch).mockRejectedValueOnce(new Error('OSV unreachable'));
+    const plugin = fakePlugin({ parse: async () => [makeDep('good-pkg')] });
+
+    const result = await analyzeRepo('/fake', { majorThreshold: 3, concurrency: 5, plugins: [plugin] });
+
+    const dep = result.dependencies.find((d) => d.name === 'good-pkg')!;
+    expect(dep.classification).toBe('unknown');
+    expect(dep.unknownReason).toContain('Vulnerability check failed');
+    expect(dep.unknownReason).toContain('OSV unreachable');
+  });
 });

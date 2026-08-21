@@ -69,20 +69,24 @@ export async function analyzeRepo(repoDir: string, options: OrchestratorOptions)
   const osvEntries = withVersion.map((r) => r.plugin.toOsvQuery(r.dep, r.version!));
 
   let vulnsByIndex: Vulnerability[][];
+  let osvError: string | undefined;
   try {
     vulnsByIndex = osvEntries.length > 0 ? await queryOsvBatch(osvEntries) : [];
-  } catch {
+  } catch (err) {
+    osvError = (err as Error).message;
     vulnsByIndex = withVersion.map(() => []);
   }
 
   let vulnCursor = 0;
   const dependencies: DependencyReport[] = resolved.map((r) => {
     const vulnerabilities = r.version !== undefined ? vulnsByIndex[vulnCursor++] ?? [] : [];
+    const unknownReason =
+      r.error ?? (r.version !== undefined && osvError ? `Vulnerability check failed: ${osvError}` : undefined);
     const classification = classify({
       version: r.version,
       vulnerabilities,
       majorThreshold: options.majorThreshold,
-      unknownReason: r.error,
+      unknownReason,
     });
     return {
       ecosystem: r.dep.ecosystem,
@@ -92,7 +96,7 @@ export async function analyzeRepo(repoDir: string, options: OrchestratorOptions)
       version: r.version,
       vulnerabilities,
       classification,
-      unknownReason: r.error,
+      unknownReason,
     };
   });
 
