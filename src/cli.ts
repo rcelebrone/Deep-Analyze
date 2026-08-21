@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 import ora from 'ora';
+import { pathToFileURL } from 'node:url';
 import { CloneError } from './core/clone.js';
 import { runCheckup } from './core/orchestrator.js';
 import type { CheckupResult } from './core/types.js';
@@ -86,6 +87,6 @@ export function buildProgram(deps: CliDeps = defaultDeps): Command {
   return program;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   buildProgram().parseAsync(process.argv);
 }
