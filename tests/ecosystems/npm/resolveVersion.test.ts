@@ -9,11 +9,12 @@ function registryResponse(latest: string) {
 describe('resolveNpmVersion', () => {
   it('uses the lockfile version as current and computes majors/minors behind', async () => {
     const manifestPath = resolve('tests/fixtures/npm/package-lock/package.json');
+    const lockfilePath = resolve('tests/fixtures/npm/package-lock/package-lock.json');
     const fetchFn = vi.fn().mockResolvedValueOnce(registryResponse('2.1.0'));
 
     const result = await resolveNpmVersion(
       { ecosystem: 'npm', name: 'left-pad', declaredRange: '^1.3.0', isDev: false, manifestPath },
-      { ecosystem: 'npm', manifestPath },
+      { ecosystem: 'npm', manifestPath, lockfilePath },
       fetchFn as unknown as typeof fetch
     );
 
@@ -23,11 +24,12 @@ describe('resolveNpmVersion', () => {
 
   it('computes minorsBehind when majors match', async () => {
     const manifestPath = resolve('tests/fixtures/npm/package-lock/package.json');
+    const lockfilePath = resolve('tests/fixtures/npm/package-lock/package-lock.json');
     const fetchFn = vi.fn().mockResolvedValueOnce(registryResponse('1.5.0'));
 
     const result = await resolveNpmVersion(
       { ecosystem: 'npm', name: 'left-pad', declaredRange: '^1.3.0', isDev: false, manifestPath },
-      { ecosystem: 'npm', manifestPath },
+      { ecosystem: 'npm', manifestPath, lockfilePath },
       fetchFn as unknown as typeof fetch
     );
 

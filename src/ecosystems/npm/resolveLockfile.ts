@@ -1,28 +1,24 @@
-import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
 export type LockfileVersions = Map<string, string>;
 
-export async function resolveLockfileVersions(manifestPath: string): Promise<LockfileVersions> {
-  const dir = dirname(manifestPath);
+const lockfileCache = new Map<string, Promise<LockfileVersions>>();
 
-  const packageLockPath = join(dir, 'package-lock.json');
-  if (existsSync(packageLockPath)) {
-    return parsePackageLockJson(await readFile(packageLockPath, 'utf-8'));
-  }
+export async function resolveLockfileVersions(lockfilePath: string | undefined): Promise<LockfileVersions> {
+  if (!lockfilePath) return new Map();
+  const cached = lockfileCache.get(lockfilePath);
+  if (cached) return cached;
+  const promise = readLockfile(lockfilePath);
+  lockfileCache.set(lockfilePath, promise);
+  return promise;
+}
 
-  const pnpmLockPath = join(dir, 'pnpm-lock.yaml');
-  if (existsSync(pnpmLockPath)) {
-    return parsePnpmLock(await readFile(pnpmLockPath, 'utf-8'));
-  }
-
-  const yarnLockPath = join(dir, 'yarn.lock');
-  if (existsSync(yarnLockPath)) {
-    return parseYarnLock(await readFile(yarnLockPath, 'utf-8'));
-  }
-
+async function readLockfile(lockfilePath: string): Promise<LockfileVersions> {
+  const raw = await readFile(lockfilePath, 'utf-8');
+  if (lockfilePath.endsWith('package-lock.json')) return parsePackageLockJson(raw);
+  if (lockfilePath.endsWith('pnpm-lock.yaml')) return parsePnpmLock(raw);
+  if (lockfilePath.endsWith('yarn.lock')) return parseYarnLock(raw);
   return new Map();
 }
 

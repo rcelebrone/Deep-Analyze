@@ -14,7 +14,7 @@ export async function resolveNpmVersion(
   manifest: ManifestRef,
   fetchFn: FetchFn = fetch
 ): Promise<VersionInfo> {
-  const lockVersions = await resolveLockfileVersions(manifest.manifestPath);
+  const lockVersions = await resolveLockfileVersions(manifest.lockfilePath);
   const current = lockVersions.get(dep.name) ?? minVersionOf(dep.declaredRange);
 
   const res = await fetchFn(npmRegistryUrl(dep.name));

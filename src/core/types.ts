@@ -11,6 +11,7 @@ export interface Vulnerability {
 export interface ManifestRef {
   ecosystem: EcosystemId;
   manifestPath: string;
+  lockfilePath?: string;
 }
 
 export interface DependencyRef {

@@ -1,6 +1,6 @@
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { npmPlugin } from '../../../src/ecosystems/npm/plugin.js';
 
@@ -39,5 +39,29 @@ describe('npmPlugin', () => {
       package: { name: 'left-pad', ecosystem: 'npm' },
       version: '1.3.0',
     });
+  });
+
+  it('resolves a workspace-nested manifest against the ROOT lockfile, not the range minimum', async () => {
+    const workspaceRoot = resolve('tests/fixtures/npm/workspace');
+    const rootLockfilePath = resolve('tests/fixtures/npm/workspace/package-lock.json');
+    const nestedManifestPath = resolve('tests/fixtures/npm/workspace/packages/app/package.json');
+
+    const manifests = await npmPlugin.discover(workspaceRoot);
+    const nestedManifest = manifests.find((m) => m.manifestPath === nestedManifestPath);
+    expect(nestedManifest).toBeDefined();
+    expect(nestedManifest?.lockfilePath).toBe(rootLockfilePath);
+
+    const deps = await npmPlugin.parse(nestedManifest!);
+    const lodashDep = deps.find((d) => d.name === 'lodash');
+    expect(lodashDep).toBeDefined();
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({ ok: true, json: async () => ({ 'dist-tags': { latest: '4.17.21' } }) })
+    );
+    const version = await npmPlugin.resolveVersion(lodashDep!, nestedManifest!);
+
+    expect(version.resolvedCurrent).toBe('4.17.21');
+    expect(version.resolvedCurrent).not.toBe('4.0.0');
   });
 });
