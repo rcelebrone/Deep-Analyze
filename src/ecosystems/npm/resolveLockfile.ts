@@ -52,7 +52,8 @@ export function parsePnpmLock(raw: string): LockfileVersions {
   const data = parseYaml(raw) as { packages?: Record<string, unknown> };
   const versions: LockfileVersions = new Map();
   for (const key of Object.keys(data.packages ?? {})) {
-    const match = key.match(/^\/?(.+)@([^@/]+)$/);
+    const withoutPeers = key.split('(')[0];
+    const match = withoutPeers.match(/^\/?(.+)@([^@/]+)$/);
     if (!match) continue;
     versions.set(match[1], match[2]);
   }
@@ -63,7 +64,7 @@ export function parseYarnLock(raw: string): LockfileVersions {
   const versions: LockfileVersions = new Map();
   const blocks = raw.split(/\n\n+/);
   for (const block of blocks) {
-    const headerMatch = block.match(/^"?([^"@,\n]+)@/);
+    const headerMatch = block.match(/^"?(@[^/]+\/[^@]+|[^"@,\n]+)@/);
     const versionMatch = block.match(/^\s+version\s+"([^"]+)"/m);
     if (headerMatch && versionMatch) {
       versions.set(headerMatch[1], versionMatch[1]);
