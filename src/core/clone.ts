@@ -7,9 +7,20 @@ export interface CloneOptions {
   token?: string;
 }
 
+function redactCredentials(text: string): string {
+  return text.replace(/https:\/\/[^@\s]+@/g, 'https://***@');
+}
+
 export class CloneError extends Error {
   constructor(public readonly url: string, public readonly cause: Error) {
-    super(`Failed to clone ${url}: ${cause.message}`);
+    const causeWithCommand = cause as Error & { command?: string; escapedCommand?: string };
+    if (causeWithCommand.message) causeWithCommand.message = redactCredentials(causeWithCommand.message);
+    if (causeWithCommand.command) causeWithCommand.command = redactCredentials(causeWithCommand.command);
+    if (causeWithCommand.escapedCommand) {
+      causeWithCommand.escapedCommand = redactCredentials(causeWithCommand.escapedCommand);
+    }
+    super(`Failed to clone ${url}: ${causeWithCommand.message}`);
+    this.cause = causeWithCommand;
   }
 }
 

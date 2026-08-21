@@ -34,6 +34,25 @@ describe('cloneRepo', () => {
     const bogusPath = join(tmpdir(), 'depcheck-does-not-exist-' + Math.random().toString(36).slice(2));
     await expect(cloneRepo(bogusPath)).rejects.toBeInstanceOf(CloneError);
   });
+
+  it('never leaks the token into the thrown error, even embedded in the underlying command', async () => {
+    const secret = 'SUPER_SECRET_TOKEN_123';
+    const bogusUrl = 'https://depcheck-does-not-exist.invalid/repo.git';
+
+    let caught: CloneError | undefined;
+    try {
+      await cloneRepo(bogusUrl, { token: secret });
+    } catch (err) {
+      caught = err as CloneError;
+    }
+
+    expect(caught).toBeInstanceOf(CloneError);
+    const causeWithCommand = caught!.cause as Error & { command?: string; escapedCommand?: string };
+    expect(caught!.message).not.toContain(secret);
+    expect(causeWithCommand.message).not.toContain(secret);
+    if (causeWithCommand.command) expect(causeWithCommand.command).not.toContain(secret);
+    if (causeWithCommand.escapedCommand) expect(causeWithCommand.escapedCommand).not.toContain(secret);
+  });
 });
 
 describe('cleanupClone', () => {
