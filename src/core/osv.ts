@@ -26,28 +26,42 @@ function severityFromDetail(detail: VulnDetail): Severity {
   return 'MEDIUM';
 }
 
+const OSV_BATCH_LIMIT = 1000;
+
 export async function queryOsvBatch(
   entries: OsvBatchQueryEntry[],
   fetchFn: FetchFn = fetch
 ): Promise<Vulnerability[][]> {
   if (entries.length === 0) return [];
 
-  const res = await fetchFn(OSV_BATCH_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ queries: entries }),
-  });
-  if (!res.ok) {
-    throw new Error(`OSV batch query failed: ${res.status} ${res.statusText}`);
+  const idsPerEntry: string[][] = [];
+  for (let i = 0; i < entries.length; i += OSV_BATCH_LIMIT) {
+    const chunk = entries.slice(i, i + OSV_BATCH_LIMIT);
+    const res = await fetchFn(OSV_BATCH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ queries: chunk }),
+    });
+    if (!res.ok) {
+      throw new Error(`OSV batch query failed: ${res.status} ${res.statusText}`);
+    }
+    const body = BatchResponseSchema.parse(await res.json());
+    idsPerEntry.push(...body.results.map((r) => r.vulns?.map((v) => v.id) ?? []));
   }
-  const body = BatchResponseSchema.parse(await res.json());
-  const idsPerEntry = body.results.map((r) => r.vulns?.map((v) => v.id) ?? []);
 
   const allIds = Array.from(new Set(idsPerEntry.flat()));
   const detailsById = new Map<string, Vulnerability>();
   for (const id of allIds) {
-    const detail = await fetchVulnDetail(id, fetchFn);
-    detailsById.set(id, { id, severity: severityFromDetail(detail), summary: detail.summary ?? '' });
+    try {
+      const detail = await fetchVulnDetail(id, fetchFn);
+      detailsById.set(id, { id, severity: severityFromDetail(detail), summary: detail.summary ?? '' });
+    } catch (err) {
+      detailsById.set(id, {
+        id,
+        severity: 'MEDIUM',
+        summary: `Details unavailable: ${(err as Error).message}`,
+      });
+    }
   }
 
   return idsPerEntry.map((ids) =>
