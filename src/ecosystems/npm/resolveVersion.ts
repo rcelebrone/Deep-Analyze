@@ -38,8 +38,19 @@ function computeMinorsBehind(current: string, latest: string): number {
 }
 
 function minVersionOf(range: string): string {
-  const version = semver.minVersion(range);
-  return version ? version.version : range.replace(/^[^\d]*/, '');
+  try {
+    const version = semver.minVersion(range);
+    if (!version) {
+      throw new Error(`Cannot determine a version for declared range "${range}"`);
+    }
+    return version.version;
+  } catch (err) {
+    // If semver.minVersion throws (e.g., for workspace:*, file:..., git+...), wrap it
+    if (err instanceof Error && err.message !== `Cannot determine a version for declared range "${range}"`) {
+      throw new Error(`Cannot determine a version for declared range "${range}"`);
+    }
+    throw err;
+  }
 }
 
 function npmRegistryUrl(name: string): string {

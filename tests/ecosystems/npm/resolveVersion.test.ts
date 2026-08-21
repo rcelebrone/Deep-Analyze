@@ -59,4 +59,17 @@ describe('resolveNpmVersion', () => {
 
     expect(fetchFn).toHaveBeenCalledWith('https://registry.npmjs.org/@types%2fnode');
   });
+
+  it('throws a clear error for non-semver range specifiers', async () => {
+    const manifestPath = resolve('tests/fixtures/npm/no-lock/package.json');
+    const fetchFn = vi.fn().mockResolvedValueOnce(registryResponse('1.0.0'));
+
+    const promise = resolveNpmVersion(
+      { ecosystem: 'npm', name: 'some-pkg', declaredRange: 'workspace:*', isDev: false, manifestPath },
+      { ecosystem: 'npm', manifestPath },
+      fetchFn as unknown as typeof fetch
+    );
+
+    await expect(promise).rejects.toThrow('Cannot determine a version for declared range "workspace:*"');
+  });
 });
